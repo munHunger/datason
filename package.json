@@ -6,6 +6,11 @@
   "scripts": {
     "test": "jasmine"
   },
+  "homepage": "https://github.com/munhunger/datason#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/munhunger/datason.git"
+  },
   "author": "munHunger",
   "license": "ISC",
   "devDependencies": {
