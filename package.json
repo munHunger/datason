@@ -1,6 +1,6 @@
 {
   "name": "datason",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A database based on JSON files on your filesystem",
   "main": "src/index.js",
   "scripts": {
@@ -15,5 +15,14 @@
   "license": "ISC",
   "devDependencies": {
     "jasmine": "3.4.0"
-  }
+  },
+  "keywords": [
+    "database",
+    "db",
+    "json",
+    "file",
+    "filesystem",
+    "persistant",
+    "store"
+  ]
 }
