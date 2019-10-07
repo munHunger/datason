@@ -19,9 +19,9 @@ function createTable(folder, name, state) {
 function load(folder, state) {
   return fs.promises.readdir(folder, "utf-8").then(items =>
     Promise.all(
-      items.map(item => {
-        fs.promises.fstat(`${folder}/${item}`).then(stat => {
-          if (stat.isDirectory) {
+      items.map(item =>
+        fs.promises.stat(`${folder}/${item}`).then(stat => {
+          if (stat.isDirectory()) {
             state[item] = {};
             return load(`${folder}/${item}`, state[item]);
           } else
@@ -30,10 +30,11 @@ function load(folder, state) {
               .then(data => JSON.parse(data))
               .then(data => {
                 data.save = () => save(`${folder}/${item}`, data);
-                state[item] = data;
+                let id = item.slice(0, -5);
+                state[id] = data;
               });
-        });
-      })
+        })
+      )
     )
   );
 }

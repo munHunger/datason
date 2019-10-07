@@ -1,6 +1,6 @@
 {
   "name": "datason",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A database based on JSON files on your filesystem",
   "main": "src/index.js",
   "scripts": {
