@@ -24,9 +24,9 @@ function load(folder, state) {
           if (stat.isDirectory()) {
             state[item] = {
               register: (id, data) =>
-                save(`${folder}/${name}/${id}.json`, data).then(_ => {
-                  data.save = () => save(`${folder}/${name}/${id}.json`, data);
-                  state[name][id] = data;
+                save(`${folder}/${item}/${id}.json`, data).then(_ => {
+                  data.save = () => save(`${folder}/${item}/${id}.json`, data);
+                  state[item][id] = data;
                   return data;
                 })
             };
