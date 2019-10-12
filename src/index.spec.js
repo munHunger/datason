@@ -56,6 +56,10 @@ describe("Database exists with table", () => {
         .connect("./data")
         .then(loaded => expect(loaded.test.data3.a).toBe("b")));
 
+    it("has register on loaded tables", () =>
+      db
+        .connect("./data")
+        .then(loaded => expect(loaded.test.register).toBeDefined()));
     it("can save updates", () => {
       test.test.data4.a = "c";
       return test.test.data4
