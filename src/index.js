@@ -22,7 +22,14 @@ function load(folder, state) {
       items.map(item =>
         fs.promises.stat(`${folder}/${item}`).then(stat => {
           if (stat.isDirectory()) {
-            state[item] = {};
+            state[item] = {
+              register: (id, data) =>
+                save(`${folder}/${name}/${id}.json`, data).then(_ => {
+                  data.save = () => save(`${folder}/${name}/${id}.json`, data);
+                  state[name][id] = data;
+                  return data;
+                })
+            };
             return load(`${folder}/${item}`, state[item]);
           } else
             return fs.promises
