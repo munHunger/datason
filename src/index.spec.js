@@ -1,8 +1,9 @@
 const fs = require("fs");
-const db = require("./index");
+const { Database, Table, TableOptions, DataEntry } = require("./index");
 
 function deleteFolder(folder) {
-  fs.readdirSync(folder, "utf8").forEach(item => {
+  if (!fs.existsSync(folder)) return;
+  fs.readdirSync(folder, "utf8").forEach((item) => {
     if (fs.lstatSync(folder + "/" + item).isDirectory())
       deleteFolder(folder + "/" + item);
     else fs.unlinkSync(folder + "/" + item);
@@ -10,65 +11,78 @@ function deleteFolder(folder) {
   fs.rmdirSync(folder);
 }
 
-describe("Initialize database", () => {
-  beforeEach(() => deleteFolder("./data"));
-  it("creates folder upon connect", () =>
-    db
-      .connect("./data")
-      .then(_ => expect(fs.existsSync("./data")).toBeTruthy()));
-  it("can create tables", () =>
-    db.connect("./data").then(db => {
-      db.createTable("table");
-      expect(fs.existsSync("./data/table")).toBeTruthy();
-    }));
-});
+describe("Testing datason", () => {
+  beforeAll(() => deleteFolder("./data"));
+  afterAll(() => deleteFolder("./data"));
 
-describe("Database exists with table", () => {
-  let test;
-  beforeAll(() => {
-    deleteFolder("./data");
-    return db.connect("./data").then(db => {
-      test = db;
-      test.createTable("test");
+  describe("Initialize database", () => {
+    afterEach(() => deleteFolder("./data"));
+    beforeEach(() => deleteFolder("./data"));
+    it("creates folder upon connect", () => {
+      expect(fs.existsSync("./data")).toBeFalsy();
+      new Database("./data");
+      expect(fs.existsSync("./data")).toBeTruthy();
+    });
+    it("can create tables", () => {
+      expect(fs.existsSync("./data/table")).toBeFalsy();
+      let database = new Database("./data");
+      database.createTable("table");
+      expect(fs.existsSync("./data/table")).toBeTruthy();
     });
   });
-  it("can register an object", () =>
-    test.test
-      .register("data", { a: "b" })
-      .then(_ => expect(fs.existsSync("./data/test/data.json")).toBeTruthy()));
-  it("returns the object after registering", () =>
-    test.test
-      .register("data2", { a: "b" })
-      .then(data => expect(data.a).toBe("b")));
 
-  describe("Has data", () => {
-    beforeAll(() =>
-      test.test
-        .register("data3", { a: "b" })
-        .then(_ => test.test.register("data4", { a: "b" }))
-    );
-    it("can access the object with dot notation", () => {
-      expect(test.test.data3.a).toBe("b");
+  describe("database exists with table", () => {
+    /**
+     * @type {Database}
+     */
+    let db;
+    beforeAll(() => {
+      db = new Database("./data");
+      db.createTable("test");
     });
 
-    it("can load the data", () =>
-      db
-        .connect("./data")
-        .then(loaded => expect(loaded.test.data3.a).toBe("b")));
+    it("can register an object", () =>
+      db.test
+        .register("dot", { a: "b" })
+        .then((_) =>
+          expect(fs.existsSync("./data/test/dot.json")).toBeTruthy()
+        ));
 
-    it("has register on loaded tables", () =>
+    it("returns the object after registering", () =>
       db
-        .connect("./data")
-        .then(loaded => expect(loaded.test.register).toBeDefined()));
-    it("can save updates", () => {
-      test.test.data4.a = "c";
-      return test.test.data4
-        .save()
-        .then(_ =>
-          db
-            .connect("./data")
-            .then(loaded => expect(loaded.test.data4.a).toBe("c"))
-        );
+        .get("test")
+        .register("a", { b: "c" })
+        .then((data) => {
+          expect(data.a.data.b).toBe("c");
+        }));
+
+    describe("table has data", () => {
+      beforeAll(() => {
+        db.createTable("data");
+        return db.get("data").register("testData", { hello: "world" });
+      });
+
+      it("can reach the data with dot notation", () => {
+        expect(db.data.testData.data.hello).toBe("world");
+      });
+
+      it("can load the data", () =>
+        new Database("./data").load().then((db) => {
+          expect(db.get("data").testData.data.hello).toBe("world");
+        }));
+
+      it("can update saved data", async () => {
+        /**
+         * @type {DataEntry}
+         */
+        let data = db.get("data").testData;
+        data.data.updated = true;
+        return data.save().then(async (_) => {
+          return new Database("./data").load().then((db) => {
+            expect(db.get("data").testData.data.updated).toBeTruthy();
+          });
+        });
+      });
     });
   });
 });
