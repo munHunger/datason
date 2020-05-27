@@ -11,8 +11,35 @@ class TableOptions {
    */
   index;
 
-  constructor(index) {
-    Object.assign(this, { index: index || Index.NONE });
+  /**
+   * @type {number}
+   */
+  indexBucketSize;
+
+  constructor(index, indexBucketSize) {
+    Object.assign(this, {
+      index: index || Index.NONE,
+      indexBucketSize: indexBucketSize || 50,
+    });
+  }
+}
+
+class IndexBucket {
+  /**
+   * @type {number}
+   */
+  minId;
+  /**
+   * @type {number}
+   */
+  maxId;
+  /**
+   * @type {string[]}
+   */
+  ids;
+
+  constructor() {
+    this.ids = [];
   }
 }
 
@@ -29,24 +56,34 @@ class Table {
    * @type {DataEntry[]}
    */
   entries;
-
   /**
    * @type {TableOptions}
    */
   options;
+
+  /**
+   * @type {string[]}
+   */
+  index;
   constructor(url, name, options) {
     Object.assign(this, { name });
     this._url = url;
     this.entries = [];
+    this.index = [];
 
     this.options = new TableOptions();
     Object.assign(this.options, options);
 
-    fs.writeFileSync(
-      `${this._url}/datason.json`,
-      JSON.stringify(this.options, null, 2),
-      "utf8"
-    );
+    if (fs.existsSync(`${this._url}/datason.json`))
+      this.options = JSON.parse(
+        fs.readFileSync(`${this._url}/datason.json`, "utf8")
+      );
+    else
+      fs.writeFileSync(
+        `${this._url}/datason.json`,
+        JSON.stringify(this.options, null, 2),
+        "utf8"
+      );
   }
 
   /**
@@ -59,8 +96,49 @@ class Table {
     return data.save().then((d) => {
       this.entries.push(d);
       this[id] = d;
+      if (this.options.index === Index.TIME) {
+        let timestamp = new Date().getTime();
+        /**
+         * @type {IndexBucket}
+         */
+        let latestBucket = this.index[this.index.length - 1];
+        if (
+          !latestBucket ||
+          latestBucket.ids.length >= this.options.indexBucketSize
+        ) {
+          latestBucket = new IndexBucket();
+          this.index.push(latestBucket);
+          latestBucket.minId = timestamp;
+        }
+        latestBucket.maxId = timestamp;
+        latestBucket.ids.push({ timestamp, id });
+      }
       return this;
     });
+  }
+
+  /**
+   *
+   * @param {number} millis
+   * @returns {DataEntry[]}
+   */
+  getFrom(millis) {
+    /**
+     * @type {IndexBucket[]}
+     */
+    let index = this.index;
+
+    return index
+      .filter(
+        (bucket) =>
+          bucket.minId >= millis ||
+          (bucket.ids.length === this.options.indexBucketSize &&
+            bucket.maxId <= millis) ||
+          bucket.ids.length < this.options.indexBucketSize
+      )
+      .reduce((acc, val) => acc.concat(val.ids), [])
+      .filter((id) => id.timestamp >= millis)
+      .map((id) => id.id);
   }
 
   async load() {
@@ -186,4 +264,5 @@ module.exports = {
   Table,
   DataEntry,
   TableOptions,
+  Index,
 };

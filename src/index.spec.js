@@ -1,5 +1,5 @@
 const fs = require("fs");
-const { Database, Table, TableOptions, DataEntry } = require("./index");
+const { Database, Table, TableOptions, DataEntry, Index } = require("./index");
 
 function deleteFolder(folder) {
   if (!fs.existsSync(folder)) return;
@@ -28,6 +28,37 @@ describe("Testing datason", () => {
       let database = new Database("./data");
       database.createTable("table");
       expect(fs.existsSync("./data/table")).toBeTruthy();
+    });
+  });
+
+  describe("database exists with time indexed table", () => {
+    /**
+     * @type {Database}
+     */
+    let db;
+    beforeAll(() => {
+      db = new Database("./data");
+      db.createTable("time", { index: Index.TIME });
+    });
+    it("indexes data based on time", async () => {
+      let times = [new Date().getTime()];
+      return db
+        .get("time")
+        .register("1", { a: 1 })
+        .then((_) => new Promise((resolve) => setTimeout(resolve, 10)))
+        .then(async (_) => {
+          times.push(new Date().getTime());
+          return db
+            .get("time")
+            .register("2", { a: 2 })
+            .then((_) => new Promise((resolve) => setTimeout(resolve, 10)))
+            .then((_) => {
+              times.push(new Date().getTime());
+              expect(db.get("time").getFrom(times[0]).length).toBe(2);
+              expect(db.get("time").getFrom(times[1]).length).toBe(1);
+              expect(db.get("time").getFrom(times[2]).length).toBe(0);
+            });
+        });
     });
   });
 
