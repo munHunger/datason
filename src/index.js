@@ -60,16 +60,25 @@ class Table {
    * @type {TableOptions}
    */
   options;
-
   /**
    * @type {string[]}
    */
   index;
+  /**
+   * A subscription function to be called on update and on new entries
+   * @callback Subscriber
+   * @param {DataEntry} new
+   */
+  /**
+   * @type {Subscriber[]}
+   */
+  subscribers = [];
   constructor(url, name, options) {
     Object.assign(this, { name });
     this._url = url;
     this.entries = [];
     this.index = [];
+    this.subscribers = [];
 
     this.options = new TableOptions();
     Object.assign(this.options, options);
@@ -86,13 +95,29 @@ class Table {
       );
   }
 
+  _notifySubscribers(val) {
+    (this.subscribers || []).forEach((fun) => fun.apply(this, [val]));
+  }
+
+  /**
+   * @param {Subscriber} fun
+   */
+  addSubscriber(fun) {
+    this.subscribers.push(fun);
+  }
+
   /**
    * @param {string} id
    * @param {*} data
    * @returns {Promise<Table>} this table once the data entry is saved
    */
   async register(id, data) {
-    data = new DataEntry(`${this._url}/${id}.json`, id, data);
+    data = new DataEntry(
+      `${this._url}/${id}.json`,
+      id,
+      (val) => this._notifySubscribers(val),
+      data
+    );
     return data.save().then((d) => {
       this.entries.push(d);
       this[id] = d;
@@ -153,6 +178,7 @@ class Table {
                 return new DataEntry(
                   `${this._url}/${entry}`,
                   entry.slice(0, -5),
+                  (val) => this._notifySubscribers(val),
                   JSON.parse(data)
                 );
               })
@@ -171,20 +197,28 @@ class DataEntry {
    * @type {string} absolute path to json file
    */
   _url;
+  _notifySubscribers;
   /**
    * @type {string}
    */
   id;
   data;
-  constructor(url, id, data) {
-    Object.assign(this, { id, data });
-    this._url = url;
+  constructor(url, id, notifySubscribers, data) {
+    Object.assign(this, {
+      _url: url,
+      _notifySubscribers: notifySubscribers,
+      id,
+      data,
+    });
   }
 
   async save() {
     return fs.promises
       .writeFile(this._url, JSON.stringify(this.data, null, 2), "utf8")
-      .then((_) => this);
+      .then((_) => {
+        this._notifySubscribers.apply(this, [this]);
+        return this;
+      });
   }
 }
 
