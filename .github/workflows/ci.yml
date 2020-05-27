@@ -26,3 +26,10 @@ jobs:
       - run: npm run test
         env:
           CI: true
+      - name: Audit
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+      - run: npm audit
+        env:
+          CI: true
